@@ -1,0 +1,55 @@
+---
+# file: roles/pxeboot/tasks/node_prep.yml
+- name: "copy all files from /ext/tmp/rpi/rootmnt/ to /ext/nfs/{{ item.name }}/"
+  synchronize:
+    src: /ext/tmp/rpi/rootmnt/
+    dest: "/ext/nfs/{{ item.name }}/"
+  delegate_to: localhost
+
+- name: "copy all files from /ext/tmp/rpi/bootmnt/ to /ext/nfs/{{ item.name }}/boot/"
+  synchronize:
+    src: /ext/tmp/rpi/bootmnt/
+    dest: "/ext/nfs/{{ item.name }}/boot/"
+  delegate_to: localhost
+
+- name: "mount /ext/nfs/{{ item.name }}/boot to /ext/srv/tftp/{{ item.sn }}"
+  mount:
+    path: /ext/srv/tftp/{{ item.sn }}
+    src: /ext/nfs/{{ item.name }}/boot
+    fstype: none
+    opts: defaults,bind
+    state: mounted
+
+- name: change permissions of /ext/srv/tftp to 777
+  file:
+    path: /ext/srv/tftp
+    mode: '0777'
+
+- name: "create file /ext/nfs/{{ item.name }}/boot/ssh"
+  file:
+    path: /ext/nfs/{{ item.name }}/boot/ssh
+    state: touch
+    modification_time: preserve
+    access_time: preserve
+
+- name: "remove UUID from /ext/nfs/{{ item.name }}/etc/fstab"
+  lineinfile:
+    path: /ext/nfs/{{ item.name }}/etc/fstab
+    regexp: 'UUID'
+    state: absent
+
+- name: "add line to file /ext/nfs/{{ item.name }}/boot/cmdline.txt"
+  replace:
+    path: /ext/nfs/{{ item.name }}/boot/cmdline.txt
+    regexp: 'console=tty1(.*)'
+    replace: "console=tty root=/dev/nfs nfsroot={{ nfs_root_ip }}:/ext/nfs/{{ item.name }},vers=3 rw ip=dhcp rootwait elevator=deadline"
+
+- name: add line to file /etc/exports
+  lineinfile:
+    path: /etc/exports
+    line: "/ext/nfs/{{ item.name }} {{ item.name }}(rw,sync,no_subtree_check,no_root_squash)"
+
+- name: add line to file /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    line: "{{ item.ip }}    {{ item.name }}"

@@ -1,0 +1,56 @@
+---
+# file: roles/drone/tasks/main.yml
+- name: "download file drone_runner_exec_linux_{{ drone_arch }}.tar.gz"
+  get_url:
+    url: "https://github.com/drone-runners/drone-runner-exec/releases/latest/download/drone_runner_exec_linux_{{ drone_arch }}.tar.gz"
+    dest: "/tmp"
+
+- name: "unpack file drone_runner_exec_linux_{{ drone_arch }}.tar.gz to /tmp/"
+  unarchive:
+    src: "/tmp/drone_runner_exec_linux_{{ drone_arch }}.tar.gz"
+    dest: "/tmp/"
+
+- name: install drone-runner-exec
+  command: sudo sh -c 'install -t /usr/local/bin /tmp/drone-runner-exec'
+  args:
+    warn: false
+
+- name: create /etc/drone-runner-exec folder
+  file:
+    path: /etc/drone-runner-exec
+    state: directory
+    owner: root
+    group: root
+    mode: '0731'
+
+- name: "copy config.{{ env }} file to /etc/drone-runner-exec/"
+  copy:
+    src: "config.{{ env }}"
+    dest: "/etc/drone-runner-exec/config"
+    owner: "root"
+    group: "root"
+
+- name: check if service drone-runner-exec exists
+  stat:
+    path: /etc/systemd/system/drone-runner-exec.service
+  register: drone_runner_exec_status
+
+- name: install service drone-runner-exec
+  command: sudo sh -c 'drone-runner-exec service install'
+  args:
+    warn: false
+  when: not drone_runner_exec_status.stat.exists
+
+- name: create log folder
+  file:
+    path: /var/log/drone-runner-exec
+    state: directory
+    owner: root
+    group: root
+    mode: '0731'
+
+- name: start service drone-runner-exec
+  service:
+    name: drone-runner-exec
+    state: started
+    enabled: yes

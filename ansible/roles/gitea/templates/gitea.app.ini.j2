@@ -1,0 +1,119 @@
+; This file lists the default values used by Gitea
+; Copy required sections to your own app.ini (default is custom/conf/app.ini)
+; and modify as needed.
+
+; see https://docs.gitea.io/en-us/config-cheat-sheet/ for additional documentation.
+
+; App name that shows in every page title
+APP_NAME = {{ gitea_app_name }}
+; Change it if you run locally
+RUN_USER = {{ gitea_user }}
+; Either "dev", "prod" or "test", default is "dev"
+RUN_MODE = {{ gitea_run_mode }}
+
+[oauth2]
+; OAuth2 authentication secret for access and refresh tokens, change this to a unique string.
+JWT_SECRET = {{ gitea_jwt_secret }}
+
+[security]
+INTERNAL_TOKEN = {{ gitea_inernal_token }}
+; Whether the installer is disabled
+INSTALL_LOCK   = {{ gitea_install_lock }}
+; !!CHANGE THIS TO KEEP YOUR USER DATA SAFE!!
+SECRET_KEY     = {{ gitea_secret_key }}
+
+[database]
+; Either "mysql", "postgres", "mssql" or "sqlite3", it's your choice
+DB_TYPE  = {{ gitea_db_type }}
+HOST     = {{ gitea_db_host }}
+NAME     = {{ gitea_db_name }}
+USER     = {{ gitea_db_user }}
+; Use PASSWD = `your password` for quoting if you use special characters in the password.
+PASSWD   = {{ gitea_db_passwd }}
+; For Postgres, either "disable" (default), "require", or "verify-full"
+; For MySQL, either "false" (default), "true", or "skip-verify"
+SSL_MODE = {{ gitea_db_ssl_mode }}
+; For MySQL only, either "utf8" or "utf8mb4", default is "utf8".
+; NOTICE: for "utf8mb4" you must use MySQL InnoDB > 5.6. Gitea is unable to check this.
+CHARSET  = {{ gitea_db_charset }}
+; For "sqlite3" and "tidb", use an absolute path when you start gitea as service
+PATH     = {{ gitea_db_path }}
+
+[repository]
+ROOT = {{ gitea_repository_root }}
+
+[server]
+; Domain name to be exposed in clone URL
+SSH_DOMAIN          = %(DOMAIN)s
+DOMAIN              = {{ gitea_domain }}
+; The protocol the server listens on. One of 'http', 'https', 'unix' or 'fcgi'.
+PROTOCOL            = {{ gitea_protocol }}
+HTTP_PORT           = {{ gitea_http_port }}
+ROOT_URL            = %(PROTOCOL)s://%(DOMAIN)s:%(HTTP_PORT)s/
+REDIRECT_OTHER_PORT = {{ gitea_redirect_other_port }}
+; Generate steps:
+; $ ./gitea cert -ca=true -duration=8760h0m0s -host=myhost.example.com
+; Paths are relative to CUSTOM_PATH
+CERT_FILE           = {{ gitea_cert_file }}
+KEY_FILE            = {{ gitea_key_file }}
+; Disable SSH feature when not available
+DISABLE_SSH         = {{ gitea_disable_ssh }}
+; Port number to be exposed in clone URL
+SSH_PORT            = {{ gitea_ssh_port }}
+; Enables git-lfs support. true or false, default is false.
+LFS_START_SERVER    = {{ gitea_lfs_start_server }}
+; Where your lfs files reside, default is data/lfs.
+LFS_CONTENT_PATH    = {{ gitea_lfs_content_path }}
+; LFS authentication secret, change this yourself
+LFS_JWT_SECRET      = {{ gitea_lfs_jwt_secret }}
+; Disable CDN even in "prod" mode
+OFFLINE_MODE        = {{ gitea_offline_mode }}
+
+[mailer]
+ENABLED = {{ gitea_mailer_enabled }}
+
+[service]
+; Whether a new user needs to confirm their email when registering.
+REGISTER_EMAIL_CONFIRM            = {{ gitea_register_email_confirm }}
+; Mail notification
+ENABLE_NOTIFY_MAIL                = {{ gitea_enable_notify_mail }}
+; Disallow registration, only allow admins to create accounts.
+DISABLE_REGISTRATION              = {{ gitea_disable_registration }}
+; Allow registration only using third-party services, it works only when DISABLE_REGISTRATION is false
+ALLOW_ONLY_EXTERNAL_REGISTRATION  = {{ gitea_allow_only_external_registration }}
+; Enable captcha validation for registration
+ENABLE_CAPTCHA                    = {{ gitea_enable_captcha }}
+; User must sign in to view anything.
+REQUIRE_SIGNIN_VIEW               = {{ gitea_require_signin_view }}
+; Each new user will get the value of this setting copied into their profile
+DEFAULT_KEEP_EMAIL_PRIVATE        = {{ gitea_default_keep_email_private }}
+; Every new user will have rights set to create organizations depending on this setting
+DEFAULT_ALLOW_CREATE_ORGANIZATION = {{ gitea_default_allow_create_organization }}
+; Repositories will use timetracking by default depending on this setting
+DEFAULT_ENABLE_TIMETRACKING       = {{ gitea_default_enable_timetracking }}
+; concatenation of the user name in lower case, "@" and NO_REPLY_ADDRESS.
+NO_REPLY_ADDRESS                  = noreply.%(DOMAIN)s
+
+[picture]
+; This value will always be true in offline mode.
+DISABLE_GRAVATAR        = {{ gitea_disable_gravatar }}
+; This value will always be false in offline mode or when Gravatar is disabled.
+ENABLE_FEDERATED_AVATAR = {{ gitea_enable_federated_avatar }}
+
+[openid]
+; Whether to allow signin in via OpenID
+ENABLE_OPENID_SIGNIN = {{ gitea_enable_openid_signin }}
+; Do not include to rely on rhw DISABLE_REGISTRATION setting
+ENABLE_OPENID_SIGNUP = {{ gitea_enable_openid_signup }}
+
+[session]
+; Either "memory", "file", or "redis", default is "memory"
+PROVIDER = {{ gitea_session_provider }}
+
+[log]
+; Either "console", "file", "conn", "smtp" or "database", default is "console"
+; Use comma to separate multiple modes, e.g. "console, file"
+MODE      = {{ gitea_log_mode }}
+; Either "Trace", "Debug", "Info", "Warn", "Error", "Critical", default is "Trace"
+LEVEL     = {{ gitea_log_level }}
+ROOT_PATH = {{ gitea_log_root_path }}

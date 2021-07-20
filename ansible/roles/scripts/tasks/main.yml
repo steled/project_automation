@@ -1,0 +1,25 @@
+---
+# file: roles/scripts/tasks/main.yml
+- import_tasks: packages.yml
+- import_tasks: backup.yml
+
+- name: copy scripts folder to /ext/scripts
+  copy:
+    src: /ext/repo/gitea_project_automation/scripts
+    dest: /ext/
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: '755'
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.name == "steled" and (ansible_hostname == "control01" or ansible_hostname == "central01")
+
+- name: generate ssh key pair for backup usage
+  openssh_keypair:
+    path: "~/.ssh/backup.id_rsa"
+    comment: "backup"
+  become: no
+  register: ssh_keypair
+
+- debug: msg="{{ ssh_keypair.public_key }} {{ ssh_keypair.comment }}"

@@ -1,0 +1,16 @@
+---
+# file: nodes.yml
+- hosts: nodes
+  roles:
+    - role: common
+      tags: install
+    - role: user_config
+      tags: install
+    - role: ssh_config
+      tags: install
+    - role: glusterfs
+      tags: gluster
+    - role: update
+      tags: update
+    - role: kubernetes
+      tags: kubernetes

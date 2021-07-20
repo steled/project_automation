@@ -1,0 +1,41 @@
+[Unit]
+Description=Gitea (Git with a cup of tea)
+After=syslog.target
+After=network.target
+###
+# Don't forget to add the database service requirements
+###
+#
+#Requires=mysql.service
+#Requires=mariadb.service
+#Requires=postgresql.service
+#Requires=memcached.service
+#Requires=redis.service
+
+[Service]
+# Modify these two values and uncomment them if you have
+# repos with lots of files and get an HTTP error 500 because
+# of that
+###
+#LimitMEMLOCK=infinity
+#LimitNOFILE=65535
+Restart=on-failure
+Type=simple
+User={{ gitea_user }}
+Group={{ gitea_group }}
+WorkingDirectory={{ gitea_work_dir }}
+# If using Unix socket: tells systemd to create the /run/gitea folder, which will contain the gitea.sock file
+# (manually creating /run/gitea doesn't work, because it would not persist across reboots)
+#RuntimeDirectory=gitea
+ExecStart={{ gitea_bin }} web --config /etc/gitea/app.ini
+Restart=always
+Environment=USER={{ gitea_user }} HOME={{ gitea_home }} GITEA_WORK_DIR={{ gitea_work_dir }}
+# If you want to bind Gitea to a port below 1024, uncomment
+# the two values below, or use socket activation to pass Gitea its ports as above
+###
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+###
+
+[Install]
+WantedBy=multi-user.target

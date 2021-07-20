@@ -1,0 +1,76 @@
+---
+# file: debug.yml
+- hosts: localhost
+  vars:
+    issue: "{{ lookup('file', '/boot/issue.txt') }}"
+  tasks:
+    - name: start service gitea
+      service:
+        name: gitea
+        state: started
+      become: true
+      register: service_gitea_status
+    - name: show output of service_gitea_status
+      debug: msg="{{ service_gitea_status }}"
+    - name: gitea test
+      debug: msg="gitea is running"
+      when:
+        - service_gitea_status.state == "started"
+#        - service_gitea_status.stdout_lines[2] | select('match', '^Active:\ active')
+    - name: get file content
+      debug: msg="{{ issue | regex_search('\d\d\d\d-\d\d-\d\d') }}"
+    - name: get latest raspios version
+      command: wget --spider "https://downloads.raspberrypi.org/raspios_lite_armhf_latest"
+      args:
+        warn: false
+      register: wget_out
+    - name: show wget_out 0
+      debug: msg="{{ wget_out }}"
+    - name: show wget_out 1
+#      debug: msg="{{ wget_out.stderr_lines | select('match', '^Location') | select('match', '\d\d\d\d-\d\d-\d\d') | join('') }}"
+      debug: msg="{{ wget_out.stderr_lines | select('match', '^Location') | list | join('') | regex_findall('\d\d\d\d-\d\d-\d\d') | last }}"
+    - name: show wget_out 2
+      debug: msg="{{ wget_out.stderr_lines | select('match', '^Location') | list | join('') | regex_search('\d\d\d\d-\d\d-\d\d') }}"
+#      debug: msg="{{ wget_out.stderr_lines[5] | regex_search(\\d\\d\\d\\d-\\d\\d-\\d\\d-(.*).zip) | regex_search(\\d\\d\\d\\d-\\d\\d-\\d\\d) }}"
+    - name: get current version of raspios
+      find:
+        paths: /ext/tmp/rpi/
+        patterns: "*.img" # test with "*.img2"
+      register: current_version
+    - name: show current version matched
+      debug: msg={{ current_version.matched == 1 }}
+    - name: show current version
+      debug: 
+        msg={{ current_version.files[0].path | regex_search('\d\d\d\d-\d\d-\d\d-(.*).img') | regex_search('\d\d\d\d-\d\d-\d\d') }}
+    - pause:
+        prompt: "A newer version RasPi OS is available.\n
+          Current version: {{ current_version.files[0].path | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d-(.*).img') | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d') }}\n
+          New version: {{ wget_out.stderr_lines | select('match', '^Location') | list | join('') | regex_findall('\\d\\d\\d\\d-\\d\\d-\\d\\d') | last }}\n
+          Do you want to Update (yes/no)"
+      register: update
+      when:
+        - (wget_out.stderr_lines | select('match', '^Location') | list | join('') | regex_findall('\\d\\d\\d\\d-\\d\\d-\\d\\d') | last) != (current_version.files[0].path | regex_search('\d\d\d\d-\d\d-\d\d-(.*).img') | regex_search('\d\d\d\d-\d\d-\d\d'))
+    - name: show current version 2
+      debug: 
+        msg={{ current_version }}
+      when:
+        - update.user_input | default('false') | bool
+##    - name: download latest raspios
+##      get_url:
+##        url: https://downloads.raspberrypi.org/raspios_lite_armhf_latest
+##        dest: /ext/tmp/rpi
+##        mode: '0777'
+##        validate_certs: no
+##    - name: "Extract new image file from /ext/tmp/rpi/{{ wget_out.stderr_lines[5] | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d-(.*).zip') }} to /ext/tmp/rpi"
+##      unarchive:
+##        src: "/ext/tmp/rpi/{{ wget_out.stderr_lines[5] | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d-(.*).zip') }}"
+##        dest: /ext/tmp/rpi
+#    - name: "download and extract new image file to /ext/tmp/rpi"
+#      unarchive:
+#        src: https://downloads.raspberrypi.org/raspios_lite_armhf_latest
+#        dest: /ext/tmp/rpi
+#        remote_src: yes
+#    - name: debug
+#      debug:
+#        var: hostvars[inventory_hostname]
+#      tags: debug

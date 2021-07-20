@@ -1,0 +1,12 @@
+---
+# file: roles/pxeboot/tasks/dnsmasq.yml
+- name: add line to file /etc/dnsmasq.conf
+  lineinfile:
+    path: /etc/dnsmasq.conf
+    line: "{{ item }}"
+  with_items:
+    - 'dhcp-range=172.16.4.255,proxy'
+    - 'log-dhcp'
+    - 'enable-tftp'
+    - 'tftp-root=/ext/srv/tftp'
+    - 'pxe-service=0,"Raspberry Pi Boot"'

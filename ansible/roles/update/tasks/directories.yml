@@ -1,0 +1,25 @@
+---
+# file: roles/update/tasks/directories.yml
+- name: "mount /ext/nfs/{{ node }}/dev"
+  mount:
+    path: /ext/nfs/{{ node }}/dev
+    src: /ext/nfs/{{ node }}/dev
+    fstype: none
+    opts: bind
+    state: "{{ mount_opt }}"
+
+- name: "mount /ext/nfs/{{ node }}/sys"
+  mount:
+    path: /ext/nfs/{{ node }}/sys
+    src: /ext/nfs/{{ node }}/sys
+    fstype: none
+    opts: bind
+    state: "{{ mount_opt }}"
+
+- name: "mount /ext/nfs/{{ node }}/proc"
+  mount:
+    path: /ext/nfs/{{ node }}/proc
+    src: /ext/nfs/{{ node }}/proc
+    fstype: none
+    opts: bind
+    state: "{{ mount_opt }}"

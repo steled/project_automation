@@ -1,0 +1,4 @@
+---
+# file: roles/kubernetes/tasks/main.yml
+- import_tasks: packages.yml
+- import_tasks: prep.yml

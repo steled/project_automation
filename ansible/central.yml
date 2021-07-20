@@ -1,0 +1,25 @@
+---
+# file: central.yml
+- hosts: central
+  become: yes
+  roles:
+    - role: common
+      tags: install
+    - role: user_config
+      tags: 
+      - install
+      - user_config
+    - role: ssh_config
+      tags: install
+    - role: glusterfs_control
+      tags: glusterfs_control
+    - role: pxeboot
+      tags: pxe
+    - role: update
+      tags: update
+    - role: kubernetes
+      tags: kubernetes
+    - role: terraform
+      tags: terraform
+    - role: scripts
+      tags: scripts
