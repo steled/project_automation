@@ -1,0 +1,11 @@
+---
+# file: roles/update/tasks/main.yml
+- include_tasks: directories.yml
+  vars:
+    mount_opt: mounted
+#- import_tasks: os.yml
+- include: os.yml ansible_connection=chroot
+#- import_tasks: bootloader.yml
+- include_tasks: directories.yml
+  vars:
+    mount_opt: absent

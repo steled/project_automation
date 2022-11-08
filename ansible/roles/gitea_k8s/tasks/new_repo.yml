@@ -1,0 +1,31 @@
+---
+# file: roles/gitea/tasks/new_repo.yml
+- hosts: localhost
+
+  tasks:
+    - name: install dependencies
+      command: ansible-galaxy collection install community.crypto
+
+    - name: generate ssh key pair for repository {{ repo }}
+      openssh_keypair:
+        path: "~/.ssh/{{ repo }}.id_rsa"
+        comment: "gitea_{{ repo }}"
+#        owner: "{{ ansible_user_id }}"
+#        group: "{{ ansible_user_id }}"
+      register: ssh_keypair
+
+    - name: add ssh config
+      blockinfile:
+        path: "~/.ssh/config"
+        block: |
+          Host {{ repo }}.github.com
+            Hostname github.com
+            User git
+            IdentityFile ~/.ssh/{{ repo }}.id_rsa
+            IdentitiesOnly yes
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - {{ repo }}"
+        create: yes
+#        owner: gitea
+#        group: gitea
+
+    - debug: msg="{{ ssh_keypair.public_key }} {{ ssh_keypair.comment }}"

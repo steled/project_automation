@@ -1,0 +1,8 @@
+---
+# file: roles/pxeboot/tasks/main.yml
+- import_tasks: packages.yml
+- import_tasks: directories.yml
+- import_tasks: common_prep.yml
+  tags: pxe_common_prep
+- import_tasks: dnsmasq.yml
+- import_tasks: services.yml

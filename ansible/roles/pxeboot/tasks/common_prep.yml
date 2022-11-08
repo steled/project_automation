@@ -1,0 +1,131 @@
+---
+# file: roles/pxeboot/tasks/common_prep.yml
+- name: get image file of raspios from /ext/tmp/rpi/ if exists
+  find:
+    paths: /ext/tmp/rpi/
+    patterns: "*.img"
+  register: current_image_file
+
+- name: get current web version of raspios
+  command: wget --spider "https://downloads.raspberrypi.org/raspios_lite_armhf_latest"
+  args:
+    warn: false
+  register: current_web_version
+
+- name: ask for update
+  pause:
+    prompt: "A newer version RasPi OS is available.\n
+      Current version: {{ current_image_file.files[0].path | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d-(.*).img') | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d') }}\n
+      New version: {{ current_web_version.stderr_lines | select('match', '^Location') | list | join('') | regex_findall('\\d\\d\\d\\d-\\d\\d-\\d\\d') | last }}\n
+      Do you want to Update (yes/no)"
+  register: update
+  when:
+    - (current_image_file.matched == 1) and ((current_image_file.files[0].path | regex_search('\d\d\d\d-\d\d-\d\d-(.*).img') | regex_search('\d\d\d\d-\d\d-\d\d')) != (current_web_version.stderr_lines | select('match', '^Location') | list | join('') | regex_findall('\\d\\d\\d\\d-\\d\\d-\\d\\d') | last))
+
+- name: download, install and configure raspios for nodes if no raspios image exists or version is updated
+  block:
+    - name: delete old image file if exists
+      file:
+        path: "{{ current_image_file.files[0].path }}"
+        state: absent
+      when:
+        - current_image_file.matched == 1
+
+    - name: "download and extract new image file to /ext/tmp/rpi"
+      unarchive:
+        src: https://downloads.raspberrypi.org/raspios_lite_armhf_latest
+        dest: /ext/tmp/rpi
+        remote_src: yes
+
+    - name: get image file of raspios from /ext/tmp/rpi/ if exists
+      find:
+        paths: /ext/tmp/rpi/
+        patterns: "*.img"
+      register: latest_image_file
+
+    - name: mount image
+      command: kpartx -a "{{ latest_image_file.files[0].path }}"
+      become: yes
+#      command: kpartx -a -v "/ext/tmp/rpi/{{ current_web_version.stderr_lines[5] | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d-(.*).img') | regex_search('\d\d\d\d-\d\d-\d\d') }}.img"
+      changed_when: false
+
+    - name: get mounted partitions
+      command: kpartx -l "{{ latest_image_file.files[0].path }}"
+      become: yes
+#      command: kpartx -l "/ext/tmp/rpi/{{ current_web_version.stderr_lines[5] | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d-(.*) | regex_search('\d\d\d\d-\d\d-\d\d') }}.img"
+      register: mounted_part
+      changed_when: false
+
+    - name: mount /dev/mapper/loop0p1 to /ext/tmp/rpi/bootmnt
+      mount:
+        path: /ext/tmp/rpi/bootmnt
+        src: "/dev/mapper/{{ mounted_part.stdout_lines[0].split()[0] }}"
+        fstype: vfat
+        state: mounted
+      changed_when: false
+
+    - name: mount /dev/mapper/loop0p2 to /ext/tmp/rpi/rootmnt
+      mount:
+        path: /ext/tmp/rpi/rootmnt
+        src: "/dev/mapper/{{ mounted_part.stdout_lines[1].split()[0] }}"
+        fstype: ext4
+        state: mounted
+      changed_when: false
+
+    - name: umount and remove folder /ext/nfs/<node> for version update
+      block:
+
+        - name: "umount /ext/srv/tftp/<node_sn>"
+          mount:
+            path: "/ext/srv/tftp/{{ item.sn }}"
+            state: absent
+          with_items:
+            - "{{ nodes }}"
+          changed_when: false
+
+        - name: "delete folder /ext/nfs/<node_name>"
+          file:
+            path: "/ext/nfs/{{ item.name }}"
+            state: absent
+          with_items:
+            - "{{ nodes }}"
+
+        - name: "create directories /ext/nfs/<node_name>"
+          file:
+            path: "/ext/nfs/{{ item.name }}"
+            state: directory
+            mode: '0755'
+          with_items:
+            - "{{ nodes }}"
+
+      when:
+        - update.user_input | default('false') | bool
+
+    - name: preparation for every node
+      include_tasks: node_prep.yml
+      args:
+        apply:
+          become: yes
+      with_items:
+        - "{{ nodes }}"
+
+    - name: unmount directory /ext/tmp/rpi/bootmnt/
+      mount:
+        path: /ext/tmp/rpi/bootmnt
+        state: absent
+      changed_when: false
+
+    - name: unmount directory /ext/tmp/rpi/rootmnt/
+      mount:
+        path: /ext/tmp/rpi/rootmnt
+        state: absent
+      changed_when: false
+
+    - name: unmount image *-raspios-*-lite-*.img
+      command: kpartx -d "{{ latest_image_file.files[0].path }}"
+      become: yes
+#      command: kpartx -d -v "/ext/tmp/rpi/{{ current_web_version.stderr_lines[5] | regex_search('\\d\\d\\d\\d-\\d\\d-\\d\\d-(.*).img') }}"
+      changed_when: false
+
+  when:
+    - (current_image_file.matched == 0) or (update.user_input | default('false') | bool)

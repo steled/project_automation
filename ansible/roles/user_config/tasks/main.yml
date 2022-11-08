@@ -1,0 +1,136 @@
+---
+# file: roles/user_config/tasks/main.yml
+- name: ensure correct group with correct gid is created/removed
+  group:
+    name: "{{ item.name }}"
+    state: "{{ item.state }}"
+    gid: "{{ item.gid }}"
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.state == "present"
+
+- name: create/remove local user with predefined ssh key
+  user:
+    name: "{{ item.name }}"
+    password: "*"
+    state: "{{ item.state }}"
+    force: yes
+    remove: yes
+    create_home: yes
+    shell: "{{ item.shell }}"
+    uid: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    groups: "{{ item.name }},sudo"
+    append: yes
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.key_file is defined or item.key is defined
+
+- name: create/remove local user and generate ssh key
+  user:
+    name: "{{ item.name }}"
+    password: "*"
+    generate_ssh_key: yes
+    ssh_key_bits: 4096
+    ssh_key_file: "/home/{{ item.name }}/.ssh/{{ item.name }}.id_rsa"
+    ssh_key_comment: "{{ item.name }}"
+    ssh_key_type: rsa
+    state: "{{ item.state }}"
+    force: yes
+    remove: yes
+    create_home: yes
+    shell: "{{ item.shell }}"
+    uid: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    groups: "{{ item.name }},sudo"
+    append: yes
+  with_items:
+    - "{{ users }}"
+  when:
+    - (not(ansible_env.SUDO_USER == item.name and item.state == "absent") and (item.key_file is undefined and item.key is undefined))
+
+- name: add local user to the sudoers
+  copy:
+    content: "{{ item.name }}  ALL=(ALL)  NOPASSWD: ALL"
+    dest: "/etc/sudoers.d/{{ item.name }}"
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.state == "present"
+
+- name: remove local user from the sudoers
+  file:
+    path: "/etc/sudoers.d/{{ item.name }}"
+    state: absent
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.state == "absent"
+
+- name: add generated ssh key from file
+  authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ lookup('file', '/home/{{ item.name }}/.ssh/{{ item.name }}.id_rsa.pub') }}"
+    manage_dir: yes
+    state: "{{ item.state }}"
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.state == "present" and item.key_file is undefined and item.key is undefined
+
+- name: add predefined ssh key from file
+  authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ lookup('file', '{{ item.key_file }}') }}"
+    manage_dir: yes
+    state: "{{ item.state }}"
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.state == "present" and item.key_file is defined
+
+- name: add predefined ssh key
+  authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.key }}"
+    manage_dir: yes
+    state: "{{ item.state }}"
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.state == "present" and item.key is defined
+
+- name: config ~/.bashrc
+  blockinfile:
+    path: "/home/{{ item.name }}/.bashrc"
+    block: |
+      # Additional commands.
+      if [ -f ~/.bashrc_addition ]; then
+          . ~/.bashrc_addition
+      fi
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.name == "steled" and (ansible_hostname == "control01" or ansible_hostname == "central01")
+
+- name: create ~/.exrc for vi configuration
+  copy:
+    content: 'set nocompatible'
+    dest: "/home/{{ item.name }}/.exrc"
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.name == "steled" and (ansible_hostname == "control01" or ansible_hostname == "central01")
+
+- name: copy .bashrc_addition file to ~/
+  copy:
+    src: "bashrc_addition"
+    dest: "/home/{{ item.name }}/.bashrc_addition"
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+  with_items:
+    - "{{ users }}"
+  when:
+    - item.name == "steled" and (ansible_hostname == "control01" or ansible_hostname == "central01")

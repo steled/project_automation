@@ -1,0 +1,13 @@
+ansible/inventories/*/*
+ansible/roles/*/defaults/*
+ansible/roles/user_config/files/*
+scripts/*
+terraform/test/*
+#terraform/grafana/terraform.tfvars
+#terraform/grafana_prometheus/terraform.tfvars
+#terraform/metallb/terraform.tfvars
+#terraform/prometheus/terraform.tfvars
+terraform/*/terraform.tfvars
+terraform/*/production.tfvars
+terraform/*/vagrant.tfvars
+.gitmodules

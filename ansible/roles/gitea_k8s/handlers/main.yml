@@ -1,0 +1,6 @@
+---
+# file: roles/gitea/handlers/main.yml
+- name: restart gitea
+  service:
+    name: gitea
+    state: restarted

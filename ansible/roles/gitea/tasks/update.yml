@@ -1,0 +1,41 @@
+---
+# file: roles/gitea/tasks/update.yml
+- hosts: control
+  become: yes
+  vars_files:
+    - ../defaults/main.yml
+
+  tasks:
+    - name: create backup
+      command: /ext/scripts/gitea_backup.sh
+
+    - name: stop service gitea
+      service:
+        name: gitea
+        state: stopped
+
+    - name: install new version
+      block:
+        - name: backup old binary
+          command: "mv {{ gitea_bin }} {{ gitea_bin }}_{{ gitea_version_old }}"
+
+        - name: "download file gitea to /usr/local/bin/gitea"
+          get_url:
+            url: "https://dl.gitea.io/gitea/{{ gitea_version }}/gitea-{{ gitea_version }}-{{ gitea_arch }}"
+            dest: "{{ gitea_bin }}"
+            owner: root
+            group: root
+            mode: "0755"
+
+    - name: start service gitea
+      service:
+        name: gitea
+        state: started
+      register: service_gitea_status
+
+    - name: delete old gitea version
+      file:
+        path: "{{ gitea_bin }}_{{ gitea_version_old }}"
+        state: absent
+      when:
+        - service_gitea_status.state == "started"

@@ -1,0 +1,6 @@
+# file: roles/glusterfs_control/tasks/main.yml
+- name: install package glusterfs-client
+  apt:
+    pkg:
+      - glusterfs-client
+    update_cache: yes

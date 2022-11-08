@@ -1,0 +1,93 @@
+---
+# file: roles/backup/tasks/main.yml
+#- name: install packages
+#  apt:
+#    state: absent
+#    pkg:
+#      - netcat
+#      - sshpass
+#    update_cache: yes
+
+#- name: create backup user and generate ssh key
+#  user:
+#    name: "backup"
+#    password: "*"
+#    generate_ssh_key: yes
+#    ssh_key_bits: 4096
+#    ssh_key_file: "/home/backup/.ssh/backup.id_rsa"
+#    ssh_key_comment: "backup"
+#    ssh_key_type: rsa
+#    state: present
+#    force: yes
+#    remove: yes
+#    create_home: yes
+#    shell: "/bin/bash"
+#    uid: 600
+#    group: 600
+#    groups: "backup"
+#    append: yes
+#  delegate_to: 127.0.0.1
+#
+#- name: add backup user to the sudoers
+#  copy:
+#    content: "backup  ALL= NOPASSWD: /usr/bin/rsync"
+#    dest: "/etc/sudoers.d/backup"
+#  delegate_to: 127.0.0.1
+
+- name: add backup01 to local hosts file
+  lineinfile:
+    path: /etc/hosts
+    line: "{{ ansible_default_ipv4.address }}       {{ ansible_fqdn }}"
+    create: yes
+    state: absent
+  delegate_to: 127.0.0.1
+
+- name: create folder /ext/central01_backup
+  file:
+    path: /ext/central01_backup
+    state: directory
+    mode: "0755"
+
+#- name: copy files to ~/
+#  copy:
+#    src: "{{ item }}"
+#    dest: ~/
+#    mode: '755'
+#  become: no
+#  with_items:
+#    - backup.sh
+#    - poe_script.sh
+#
+#- name: create cronjob for backup of central01
+#  cron:
+#    name: "backup of central01"
+#    hour: "00"
+#    minute: "00"
+#    job: "~/backup.sh 2> /ext/logs/backup_central01.log"
+#    state: absent
+#  become: no
+
+#- name: generate ssh key pair for backup usage
+#  openssh_keypair:
+#    path: "~/.ssh/backup.id_rsa"
+#    comment: "backup"
+#  become: no
+#
+#- name: fetch the keyfile from backup01
+#  fetch: 
+#    src: "~/.ssh/backup.id_rsa.pub"
+#    dest: "/tmp/{{ansible_hostname}}-id_rsa.pub"
+#    flat: yes
+#  become: no
+#
+- name: copy backup authorized key to backup01
+  authorized_key:
+    user: steled
+    state: present
+    key: "{{ lookup('file', '/home/steled/.ssh/backup.id_rsa.pub') }}"
+#
+#- name: remove keyfile from backup01
+#  file:
+#    path: "/tmp/{{ansible_hostname}}-id_rsa.pub"
+#    state: absent
+#  delegate_to: 127.0.0.1

@@ -1,0 +1,23 @@
+---
+# file: roles/pxeboot/tasks/directories.yml
+- name: create directory /ext/tmp/rpi
+  file:
+    path: /ext/tmp/rpi
+    state: directory
+    mode: '0777'
+
+- name: create directories /ext/nfs/<node_name> for each node
+  file:
+    path: "/ext/nfs/{{ item.name }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - "{{ nodes }}"
+
+- name: create directories /ext/srv/tftp/<node_sn> for each node
+  file:
+    path: "/ext/srv/tftp/{{ item.sn }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - "{{ nodes }}"

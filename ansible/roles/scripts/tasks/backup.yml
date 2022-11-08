@@ -1,0 +1,49 @@
+---
+# file: roles/scripts/tasks/backup.yml
+- name: create cronjob for project_automation_mirror to github
+  cron:
+    name: "project automation mirror to github"
+    hour: "21"
+    minute: "00"
+    job: "/ext/scripts/project_automation_mirror_k8s.sh 2> /ext/logs/project_automation_mirror.log"
+  become: no
+
+- name: create cronjob for terraform_mirror to github
+  cron:
+    name: "terraform mirror to github"
+    hour: "21"
+    minute: "30"
+    job: "/ext/scripts/terraform_mirror_k8s.sh 2> /ext/logs/terraform_mirror.log"
+  become: no
+
+- name: create cronjob for hassio backup
+  cron:
+    name: "hassio backup"
+    hour: "22"
+    minute: "00"
+    job: "/ext/scripts/hassio_backup.sh 2> /ext/logs/hassio_backup_error.log"
+  become: no
+
+- name: create cronjob for gitea backup
+  cron:
+    name: "gitea backup"
+    hour: "22"
+    minute: "30"
+    job: "/ext/scripts/gitea_backup_k8s.sh 2> /ext/logs/gitea_backup_error.log"
+  become: no
+
+- name: create cronjob for nextcloud backup
+  cron:
+    name: "nextcloud backup"
+    hour: "23"
+    minute: "00"
+    job: "/ext/scripts/nextcloud_backup_k8s.sh 2> /ext/logs/nextcloud_backup_error.log"
+  become: no
+
+- name: create cronjob for central01 backup
+  cron:
+    name: "central01 backup"
+    hour: "00"
+    minute: "00"
+    job: "/ext/scripts/central01_backup.sh 2> /ext/logs/central01_backup_error.log"
+  become: no

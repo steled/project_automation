@@ -1,0 +1,31 @@
+---
+# file: roles/common/tasks/main.yml
+- name: set hostname
+  hostname:
+    name: "{{ item.hostname }}"
+  when: ansible_default_ipv4.address == item.ip
+  with_items:
+    - "{{ host }}"
+
+- name: set /etc/hosts file
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: '127.0.1.1       {{ item.hostname }}'
+    state: present
+    backrefs: yes
+    backup: yes
+  when: ansible_default_ipv4.address == item.ip
+  with_items:
+    - "{{ host }}"
+
+- name: change password for user root
+  user:
+    name: root
+    password: "{{ root_password }}"
+
+- name: set timezone to {{ timezone }}
+  timezone:
+    name: "{{ timezone }}"
+  when:
+    - ansible_hostname != "lailaps"

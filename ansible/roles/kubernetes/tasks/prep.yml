@@ -1,0 +1,144 @@
+---
+# file: roles/kubernetes/tasks/prep.yml
+- name: create container directory
+  file:
+    path: "{{ container_dir }}"
+    state: directory
+    mode: '0775'
+
+- name: disable swap
+  shell: swapoff -a
+  args:
+    warn: no
+  when: ansible_architecture == "x86_64"
+
+- name: check if service dphys-swapfile exists
+  stat:
+    path: /etc/systemd/system/multi-user.target.wants/dphys-swapfile.service
+  register: dphys_swapfile_status
+  when: (ansible_architecture == "armv7l" or ansible_architecture == "aarch64")
+
+- name: disable service swap
+  service:
+    name: dphys-swapfile
+    state: stopped
+  when: (ansible_architecture == "armv7l" or ansible_architecture == "aarch64") and dphys_swapfile_status.stat.exists
+
+- name: remove service swap
+  apt:
+    name: dphys-swapfile
+    state: absent
+    purge: yes
+  when: (ansible_architecture == "armv7l" or ansible_architecture == "aarch64") and dphys_swapfile_status.stat.exists
+
+- name: disable swap at /etc/fstab
+  replace:
+    path: /etc/fstab
+    regexp: '(.*?\sswap\s+sw)'
+    replace: '# \1'
+
+- name: add kernel modules overlay and br_netfilter
+  lineinfile:
+    path: "{{ item.path }}"
+    line: "{{ item.line }}"
+    create: yes
+  with_items:
+    - { path: '/etc/modules-load.d/overlay.conf', line: 'overlay' }
+    - { path: '/etc/modules-load.d/br_netfilter.conf', line: 'br_netfilter' }
+
+- name: load kernel modules overlay and br_netfilter
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - "overlay"
+    - "br_netfilter"
+
+- name: set required sysctl params in /etc/sysctl.d/99-kubernetes-cri.conf
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-kubernetes-cri.conf
+    reload: yes
+  with_items:
+    - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { name: 'net.ipv4.ip_forward', value: '1' }
+    - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+
+- name: "replace lines at file /etc/crio/crio.conf"
+  replace:
+    path: /etc/crio/crio.conf
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  with_items:
+    - { regexp: '#root = "\/(.*)', replace: 'root = "{{ container_dir }}"' }
+    - { regexp: '#runroot = "\/(.*)', replace: 'runroot = "{{ container_dir }}"' }
+
+- name: remove file /etc/cni/net.d/100-crio-bridge.conf
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_fileglob:
+    - "/etc/cni/net.d/*-crio-bridge.conf"
+
+- name: reread configs
+  systemd:
+    daemon_reload: yes
+
+- name: enable and start service crio
+  systemd:
+    name: crio
+    state: started
+    enabled: yes
+
+- name: create folder /etc/bash_completion.d/ if it doesn't exist
+  file:
+    path: /etc/bash_completion.d
+    state: directory
+    mode: '0755'
+
+- name: add kubectl completion
+  command: sudo sh -c 'kubectl completion bash > /etc/bash_completion.d/kubectl'
+  args:
+    warn: false
+
+- name: add helm completion
+  command: sudo sh -c 'helm completion bash > /etc/bash_completion.d/helm'
+  args:
+    warn: false
+
+- name: check that /boot/cmdline.txt is updated
+  replace:
+    path: /boot/cmdline.txt
+    regexp: 'cgroup_enable=cpuset'
+  check_mode: yes
+  when: (ansible_architecture == "armv7l" or ansible_architecture == "aarch64")
+  register: cmdline
+
+- name: update /boot/cmdline.txt
+  replace:
+    path: /boot/cmdline.txt
+    regexp: '(console.*)'
+    replace: '\1 cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1'
+  when:
+    - (not(cmdline is changed)) and (ansible_architecture == "armv7l" or ansible_architecture == "aarch64")
+
+- name: copy master init script
+  copy:
+    src: /ext/repo/gitea_project_automation/scripts/master_kubernetes_init.sh
+    dest: /tmp/master_kubernetes_init.sh
+    mode: '0755'
+  when: "'master' in ansible_hostname"
+
+- name: copy node init script
+  copy:
+    src: /ext/repo/gitea_project_automation/scripts/node_kubernetes_init.sh
+    dest: /tmp/node_kubernetes_init.sh
+    mode: '0755'
+  when: "'node' in ansible_hostname"
+
+- name: reboot
+  reboot:
+    reboot_timeout: 90
+  when:
+    - not(ansible_hostname == "control01" or ansible_hostname == "central01")

@@ -1,0 +1,94 @@
+---
+# file: roles/kubernetes/tasks/packages.yml
+- name: add apt key for kubic and kubernetes repository
+  apt_key:
+    url: "{{ item }}"
+    state: present
+  with_items:
+#    - "https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{ crio_version }}/{{ crio_distro }}/Release.key"
+#    - "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ crio_distro }}/Release.key"
+    - "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+
+- name: add keyrings for cri-o
+  get_url:
+    url: "{{ item.url }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { url: "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ crio_distro }}/Release.key", dest: "/usr/share/keyrings/libcontainers-archive-keyring.asc" }
+    - { url: "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ crio_version }}/{{ crio_distro }}/Release.key", dest: "/usr/share/keyrings/libcontainers-crio-archive-keyring.asc" }
+
+- name: add repository kubic and kubernetes
+  apt_repository:
+    repo: "{{ item.repo }}"
+    state: present
+    filename: "{{ item.filename }}"
+    validate_certs: no
+  with_items:
+    - { repo: "deb [signed-by=/usr/share/keyrings/libcontainers-crio-archive-keyring.asc] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ crio_version }}/{{ crio_distro }}/ /", filename: "devel:kubic:libcontainers:stable:cri-o:{{ crio_version }}" }
+    - { repo: "deb [signed-by=/usr/share/keyrings/libcontainers-archive-keyring.asc] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ crio_distro }}/ /", filename: "devel:kubic:libcontainers:stable" }
+    - { repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main", filename: "kubernetes"}
+
+- name: add repository debian backport
+  apt_repository:
+    repo: "deb http://deb.debian.org/debian buster-backports main"
+    state: present
+    filename: "sources"
+    validate_certs: no
+  when: crio_distro == "Debian_10"
+
+- name: install libseccomp2 from backport
+  apt:
+    name: libseccomp2
+    state: latest
+    default_release: buster-backports
+    update_cache: yes
+  when: crio_distro == "Debian_10"
+
+- name: update repository cache and install needed packages
+  apt:
+    pkg:
+      - curl
+      - cri-o
+      - cri-o-runc
+      - apt-transport-https
+    state: latest
+    autoclean: yes
+    autoremove: yes
+    update_cache: yes
+
+- name: update repository cache and install needed kubernetes packages
+  apt:
+    pkg:
+      - kubelet={{ kubelet_version }}
+      - kubeadm={{ kubeadm_version }}
+      - kubectl={{ kubectl_version }}
+    autoclean: yes
+    autoremove: yes
+    update_cache: yes
+
+- name: prevent kubelet, kubeadm and kubectl from being upgraded
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  with_items:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: "download file helm-v{{ helm_version }}-{{ helm_arch }}.tar.gz"
+  get_url:
+    url: "https://get.helm.sh/helm-v{{ helm_version }}-{{ helm_arch }}.tar.gz"
+    dest: "/tmp"
+
+- name: "unpack file helm-v{{ helm_version }}-{{ helm_arch }}.tar.gz to /tmp/"
+  unarchive:
+    src: "/tmp/helm-v{{ helm_version }}-{{ helm_arch }}.tar.gz"
+    dest: "/tmp/"
+    remote_src: yes
+
+- name: "copy file /tmp/helm-v{{ helm_version }}-{{ helm_arch }}/helm to /usr/local/bin/"
+  copy:
+    src: "/tmp/{{ helm_arch }}/helm"
+    dest: "/usr/local/bin/helm"
+    mode: u+x,g+x,o+x
+    remote_src: yes

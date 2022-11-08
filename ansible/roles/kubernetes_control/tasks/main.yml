@@ -1,0 +1,68 @@
+---
+# file: roles/kubernetes_control/tasks/main.yml
+- name: disable service swap
+  service:
+    name: dphys-swapfile
+    state: stopped
+  ignore_errors: yes
+  when: ansible_architecture == "armv7l"
+
+- name: remove service swap
+  apt:
+    name: dphys-swapfile
+    state: absent
+    purge: yes
+  when: ansible_architecture == "armv7l"
+
+- name: add apt key for kubernetes repository
+  apt_key:
+    url: "{{ item }}"
+    state: present
+  with_items:
+    - "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+
+- name: add repository kubernetes
+  apt_repository:
+    repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+    state: present
+    filename: "kubernetes"
+    validate_certs: no
+
+- name: update repository cache and install needed packages
+  apt:
+    pkg:
+      - curl
+      - apt-transport-https
+      - kubectl={{ kubectl_version }}
+    update_cache: yes
+
+- name: prevent kubectl from being upgraded
+  dpkg_selections:
+    name: "kubectl"
+    selection: hold
+
+- name: add kubectl completion
+  command: sudo sh -c 'kubectl completion bash > /etc/bash_completion.d/kubectl'
+  args:
+    warn: false
+
+- name: "download file helm-v{{ helm_version }}-{{ helm_arch }}.tar.gz"
+  get_url:
+    url: "https://get.helm.sh/helm-v{{ helm_version }}-{{ helm_arch }}.tar.gz"
+    dest: "/tmp"
+
+- name: "unpack file helm-v{{ helm_version }}-{{ helm_arch }}.tar.gz to /tmp/"
+  unarchive:
+    src: "/tmp/helm-v{{ helm_version }}-{{ helm_arch }}.tar.gz"
+    dest: "/tmp/"
+
+- name: "copy file /tmp/{{ helm_arch }}/helm to /usr/local/bin/"
+  copy:
+    src: "/tmp/{{ helm_arch }}/helm"
+    dest: "/usr/local/bin/helm"
+    mode: u+x,g+x,o+x
+
+- name: add helm completion
+  command: sudo sh -c 'helm completion bash > /etc/bash_completion.d/helm'
+  args:
+    warn: false

@@ -1,0 +1,86 @@
+---
+# file: roles/ssh_config/tasks/main.yml
+- name: enable ssh AuthorizedKeysFile
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#AuthorizedKeysFile"
+    line: "AuthorizedKeysFile      .ssh/authorized_keys"
+    state: present
+    insertafter: EOF
+    backup: yes
+  notify:
+    - restart ssh
+
+- name: enable ssh PubkeyAuthentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#PubkeyAuthentication yes"
+    line: "PubkeyAuthentication yes"
+    state: present
+    insertafter: EOF
+    backup: yes
+  notify:
+    - restart ssh
+
+- name: disable ssh PasswordAuthentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#PasswordAuthentication yes"
+    line: "PasswordAuthentication no"
+    state: present
+    insertafter: EOF
+    backup: yes
+  notify:
+    - restart ssh
+
+- name: enable ssh PasswordAuthentication for user root
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    line: "{{ item }}"
+    state: present
+    insertafter: EOF
+    backup: yes
+  with_items:
+    - "Match User root"
+    - "        PasswordAuthentication yes"
+  notify:
+    - restart ssh
+
+- name: disable ssh UsePAM
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^UsePAM yes"
+    line: "UsePAM no"
+    state: present
+    insertafter: EOF
+    backup: yes
+  notify:
+    - restart ssh
+
+- name: disable ssh PermitEmptyPasswords
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#PermitEmptyPasswords no"
+    line: "PermitEmptyPasswords no"
+    state: present
+    insertafter: EOF
+    backup: yes
+  notify:
+    - restart ssh
+
+- name: enable ssh PermitRootLogin
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#PermitRootLogin prohibit-password"
+    line: "PermitRootLogin yes"
+    state: present
+    insertafter: EOF
+    backup: yes
+  notify:
+    - restart ssh
+
+- name: reboot
+  reboot:
+    reboot_timeout: 90
+  when:
+    - not(ansible_hostname == "control01" or ansible_hostname == "central01")

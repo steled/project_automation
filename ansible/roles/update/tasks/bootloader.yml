@@ -1,0 +1,13 @@
+---
+# file: roles/update/tasks/bootloader.yml
+- name: change FIRMWARE_RELEASE_STATUS to stable
+  replace:
+    path: /etc/default/rpi-eeprom-update
+    regexp: 'critical'
+    replace: 'stable'
+
+- name: run rpi-eeprom-update
+  command: rpi-eeprom-update -a
+
+- name: reboot
+  reboot:

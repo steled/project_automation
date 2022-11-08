@@ -1,0 +1,29 @@
+---
+# file: control.yml
+- hosts: control
+  become: yes
+  roles:
+    - role: common
+      tags: install
+    - role: user_config
+      tags: 
+      - install
+      - user_config
+    - role: ssh_config
+      tags: install
+    - role: glusterfs_control
+      tags: glusterfs_control
+    - role: gitea
+      tags: gitea
+    - role: pxeboot
+      tags: pxe
+    - role: update
+      tags: update
+    - role: kubernetes_control
+      tags: kubernetes_control
+    - role: terraform
+      tags: terraform
+    - role: drone
+      tags: drone
+    - role: scripts
+      tags: scripts

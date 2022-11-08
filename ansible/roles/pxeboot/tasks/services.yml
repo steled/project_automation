@@ -1,0 +1,19 @@
+---
+# file: roles/pxeboot/tasks/services.yml
+- name: enable and restart service rpcbind
+  service:
+    name: rpcbind
+    enabled: yes
+    state: restarted
+
+- name: enable and restart service nfs-kernel-server
+  service:
+    name: nfs-kernel-server
+    enabled: yes
+    state: restarted
+
+- name: enable and restart service dnsmasq
+  service:
+    name: dnsmasq
+    enabled: yes
+    state: restarted

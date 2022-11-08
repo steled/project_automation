@@ -1,0 +1,7 @@
+---
+# file: roles/scripts/tasks/packages.yml
+- name: install package nc
+  apt:
+    pkg:
+      - netcat
+    update_cache: yes

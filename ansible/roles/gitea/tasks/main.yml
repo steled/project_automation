@@ -1,0 +1,129 @@
+---
+# file: roles/gitea/tasks/main.yml
+- name: install git
+  package:
+    name: git
+    state: present
+
+- name: "create group {{ gitea_group }}"
+  group:
+    name: "{{ gitea_group }}"
+    state: present
+
+- name: "create user {{ gitea_user }}"
+  user:
+    name: "{{ gitea_user }}"
+    comment: "{{ gitea_comment }}"
+    group: "{{ gitea_group }}"
+    home: "{{ gitea_home }}"
+    shell: "{{ gitea_shell }}"
+#    generate_ssh_key: yes
+#    ssh_key_bits: 2048
+#    ssh_key_file: .ssh/id_rsa
+#    ssh_key_comment: "{{ gitea_user }}"
+    password: "*"
+    system: yes
+    state: present
+#  register: user
+
+- name: "create directories {{ gitea_work_dir }}/{custom,data,log}"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ gitea_user }}"
+    group: "{{ gitea_group }}"
+    mode: "0750"
+  with_items:
+    - "{{ gitea_work_dir }}/custom"
+    - "{{ gitea_work_dir }}/data"
+    - "{{ gitea_work_dir }}/log"
+
+- name: create directory /etc/gitea
+  file:
+    path: /etc/gitea
+    state: directory
+    owner: root
+    group: "{{ gitea_group }}"
+    mode: "0750"
+
+- name: "create directory {{ gitea_repository_root }}"
+  file:
+    path: "{{ gitea_repository_root }}"
+    state: directory
+    owner: gitea
+    group: gitea
+    mode: "0775"
+
+- name: "download file gitea-{{ gitea_version }}-{{ gitea_arch }} to {{ gitea_bin }}"
+  get_url:
+    url: "https://dl.gitea.io/gitea/{{ gitea_version }}/gitea-{{ gitea_version }}-{{ gitea_arch }}"
+    dest: "{{ gitea_bin }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: create file /etc/gitea/app.ini
+  template:
+    src: gitea.app.ini.j2
+    dest: /etc/gitea/app.ini
+    owner: root
+    group: gitea
+    mode: "0660"
+
+- name: "create directory {{ gitea_work_dir }}/custom/https"
+  file:
+    path: "{{ gitea_work_dir }}/custom/https"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: check that file {{ gitea_work_dir }}/custom/https/cert.pem exists
+  stat:
+    path: "{{ gitea_work_dir }}/custom/https/cert.pem"
+  register: cert_result
+
+- name: check that file {{ gitea_work_dir }}/custom/https/key.pem exists
+  stat:
+    path: "{{ gitea_work_dir }}/custom/https/key.pem"
+  register: key_result
+
+- name: create certificates if not exist
+  block:
+    - name: create certificates
+      command: "{{ gitea_bin }} cert -ca=true -duration=8760h0m0s -host={{ gitea_domain }}"
+      changed_when: false
+
+    - name: move cert.pem and key.pem to {{ gitea_work_dir }}/custom/https
+      command: "mv {{ item }} {{ gitea_work_dir }}/custom/https"
+      with_items:
+        - cert.pem
+        - key.pem
+      changed_when: false
+
+    - name: change owner and mode of {{ gitea_work_dir }}/custom/https/{cert.pem,key.pem}
+      file:
+        path: "{{ gitea_work_dir }}/custom/https/{{ item }}"
+        owner: "{{ gitea_user }}"
+        group: "{{ gitea_group }}"
+      with_items:
+        - cert.pem
+        - key.pem
+
+  when:
+    - cert_result.stat.exists == false and key_result.stat.exists == false
+
+- name: create service gitea
+  template:
+    src: gitea.service.j2
+    dest: /etc/systemd/system/gitea.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart gitea
+
+- name: enable and start/restart service gitea
+  service:
+    name: gitea
+    state: restarted
+    enabled: yes

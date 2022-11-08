@@ -1,0 +1,21 @@
+---
+- name: add host to local hosts file
+  lineinfile:
+    path: /etc/hosts
+    line: "{{ ansible_default_ipv4.address }}     {{ ansible_fqdn }}"
+    create: yes
+    state: present
+  delegate_to: 127.0.0.1
+
+- name: generate ssh key pair for upload usage
+  openssh_keypair:
+    path: "~/.ssh/upload.id_rsa"
+    comment: "upload"
+  become: no
+  delegate_to: 127.0.0.1
+
+- name: copy upload authorized key to lailaps
+  authorized_key:
+    user: steled
+    state: present
+    key: "{{ lookup('file', '/home/steled/.ssh/upload.id_rsa.pub') }}"

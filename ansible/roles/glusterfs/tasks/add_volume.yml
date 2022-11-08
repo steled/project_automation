@@ -1,0 +1,50 @@
+---
+# file: roles/glusterfs/tasks/add_volume.yml
+- hosts: nodes
+  vars_files:
+    - ../defaults/main.yml
+
+  tasks:
+    - name: create brick directory
+      file:
+        path: "{{ brick_dir }}"
+        state: directory
+        mode: '0775'
+
+    - name: create gluster volume
+      gluster_volume:
+        state: present
+        name: "{{ gluster_vol }}"
+        bricks: "{{ brick_dir }}"
+        replicas: "{{ gluster_replicas }}"
+        arbiters: "{{ gluster_arbiters }}"
+        rebalance: no
+        cluster: "{{ nodes | map(attribute='name') | join(',')}}"
+        force: true
+        options:
+          {
+            storage.owner-uid: "{{ uid | default(omit) }}",
+            storage.owner-gid: "{{ gid | default(omit) }}"
+          }
+      run_once: true
+
+    - name: start gluster volume
+      gluster_volume:
+        state: started
+        name: "{{ gluster_vol }}"
+
+    - name: create mount directory
+      file:
+        path: "{{ mount_dir }}"
+        state: directory
+        owner: "{{ uid | default('root') }}"
+        group: "{{ gid | default('root') }}"
+        mode: '0775'
+
+    - name: "mount {{ ansible_hostname }}:/{{ gluster_vol }} to {{ mount_dir }}"
+      mount:
+        path: "{{ mount_dir }}"
+        src: "{{ ansible_hostname }}:/{{ gluster_vol }}"
+        fstype: glusterfs
+        opts: defaults,_netdev,noauto,x-systemd.automount
+        state: mounted

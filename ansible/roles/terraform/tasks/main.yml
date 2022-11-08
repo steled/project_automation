@@ -1,0 +1,28 @@
+---
+# file: roles/terraform/tasks/main.yml
+- name: install package unzip
+  apt:
+    pkg:
+      - unzip
+    update_cache: yes
+
+- name: "download file terraform_{{ terraform_version }}_{{ terraform_arch }}.zip to /tmp"
+  get_url:
+    url: "https://releases.hashicorp.com/terraform/{{ terraform_version }}/terraform_{{ terraform_version }}_{{ terraform_arch }}.zip"
+    dest: "/tmp"
+
+- name: "unpack file terraform_{{ terraform_version }}_{{ terraform_arch }}.zip to /tmp/"
+  unarchive:
+    src: "/tmp/terraform_{{ terraform_version }}_{{ terraform_arch }}.zip"
+    dest: "/tmp/"
+
+- name: "copy file /tmp/terraform to /usr/local/bin/"
+  copy:
+    src: "/tmp/terraform"
+    dest: "/usr/local/bin/terraform"
+    mode: u+x,g+x,o+x
+
+- name: add terraform completion
+  command: sudo sh -c "echo complete -C /usr/local/bin/terraform terraform > /etc/bash_completion.d/terraform"
+  args:
+    warn: false
